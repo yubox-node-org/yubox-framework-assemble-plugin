@@ -8,6 +8,9 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 
+import java.io.OutputStreamWriter;
+import java.io.FileOutputStream;
+
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
@@ -18,6 +21,8 @@ import processing.app.tools.Tool;
 import processing.app.packages.UserLibraryFolder;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.compress.compressors.CompressorStreamFactory;
+import org.apache.commons.compress.compressors.CompressorOutputStream;
 
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
@@ -141,15 +146,16 @@ implements Tool
         }
         MustacheFactory mf = new DefaultMustacheFactory();
         try {
+            CompressorStreamFactory csf = new CompressorStreamFactory();
+
             for (String t : content.keySet()) {
-                File dstPath = new File(dataDir, t);
                 if (content.get(t).containsKey("source_path")) {
                     File srcPath = (File)(content.get(t).get("source_path"));
                     System.out.println(String.format("INFO: COPYING file %1$s into data/%2$s ...", srcPath.getAbsolutePath(), t));
-                    FileUtils.copyFile(srcPath, dstPath);
+                    FileUtils.copyFile(srcPath, new File(dataDir, t));
                 } else if (content.get(t).containsKey("template_path")) {
                     File tplPath = (File)(content.get(t).get("template_path"));
-                    System.out.println(String.format("INFO: PARSING file %1$s into data/%2$s ...", tplPath.getAbsolutePath(), t));
+                    System.out.println(String.format("INFO: PARSING file %1$s into data/%2$s.gz ...", tplPath.getAbsolutePath(), t));
                     Mustache tpl_content = mf.compile(tplPath.getAbsolutePath());
 
                     HashMap<String, ArrayList< HashMap<String, String> >> tpl_context = new HashMap<String, ArrayList< HashMap<String, String> >>();
@@ -200,25 +206,30 @@ implements Tool
                         tpl_context.get("extra_jslibs").add(_e);
                     }
 
-                    // TODO: comprimir con gzip de apache commons
+                    // Comprimir con gzip de apache commons
+                    CompressorOutputStream gzipOutStream = csf.createCompressorOutputStream(
+                        CompressorStreamFactory.GZIP,
+                        new FileOutputStream(new File(dataDir, t+".gz")));
                     tpl_content
-                        .execute(new BufferedWriter(new FileWriter(dstPath)), tpl_context)
+                        .execute(new OutputStreamWriter(gzipOutStream, "UTF-8"), tpl_context)
                         .close();
                 }
                 manifest.add(t);
             }
 
-            //
+            // TODO: Escribir manifest.txt en formato UNIX
 
         } catch (IOException e) {
             // Uno o más archivos no se pudieron leer o escribir
             System.err.println();
             editor.statusError(e);
             return;
+        } catch (org.apache.commons.compress.compressors.CompressorException e) {
+            // No se encuentra soporte para gzip. Esto no debería pasar.
+            System.err.println();
+            editor.statusError(e);
+            return;
         }
-
-        //System.err.println();
-        //editor.statusError("TODO: implementar realmenteeeee...");
     }
 
     private List<File> _buildDataTemplateDirList()
