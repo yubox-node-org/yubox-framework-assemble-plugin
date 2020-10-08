@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.PrintWriter;
 import java.io.IOException;
 
 import java.io.OutputStreamWriter;
@@ -217,7 +218,15 @@ implements Tool
                 manifest.add(t);
             }
 
-            // TODO: Escribir manifest.txt en formato UNIX
+            // Escribir manifest.txt en formato UNIX
+            PrintWriter w = new PrintWriter(new File(dataDir, "manifest.txt"), "UTF-8");
+            for (String l : manifest) {
+                // No estoy usando PrintWriter.println() porque se debe escribir explícitamente
+                // un solo caracter \n, incluso en Windows.
+                w.print(l); w.print("\n");
+            }
+            w.flush();
+            w.close();
 
         } catch (IOException e) {
             // Uno o más archivos no se pudieron leer o escribir
