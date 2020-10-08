@@ -1,16 +1,8 @@
 package org.yubox.arduinoplugin;
 
 import java.util.*;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.PrintWriter;
-import java.io.IOException;
-
-import java.io.OutputStreamWriter;
-import java.io.FileOutputStream;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
@@ -28,6 +20,7 @@ import org.apache.commons.compress.compressors.CompressorOutputStream;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
 import com.github.mustachejava.MustacheFactory;
+import com.github.mustachejava.MustacheResolver;
 
 public class YUBOXFrameworkAssemble
 implements Tool
@@ -145,7 +138,17 @@ implements Tool
                 return;
             }
         }
-        MustacheFactory mf = new DefaultMustacheFactory();
+
+        // Se construye explícitamente un CustomMustacheResolver porque la plantilla Mustache
+        // jamás es un recurso dentro de un classpath sino en un sistema de archivos, y además
+        // para evitar (en Windows) que se intente construir un URI sobre una ruta estilo Windows
+        // (con backslash) y salte un IllegalArgumentException en java.net.URI. Por otra parte
+        // com.github.mustachejava.resolver.FileSystemResolver contiene una verificación de seguridad
+        // que estorba bajo Windows al requerir plantillas que residen tanto en bibliotecas de
+        // Arduino IDE como en proyectos de usuario que pueden residir en unidades de disco
+        // distintas.
+        MustacheFactory mf = new DefaultMustacheFactory(new CustomMustacheResolver());
+
         try {
             CompressorStreamFactory csf = new CompressorStreamFactory();
 
@@ -439,5 +442,27 @@ implements Tool
         }
 
         return module_active;
+    }
+
+    private class CustomMustacheResolver
+        implements MustacheResolver
+    {
+        @Override
+        public Reader getReader(String resourceName) {
+            InputStream is = null;
+            File file = new File(resourceName);
+            if (file.exists() && file.isFile()) {
+                try {
+                    is = new FileInputStream(file);
+                } catch (IOException e) {
+                    throw new com.github.mustachejava.MustacheException("Found file, could not open: " + file, e);
+                }
+            }
+            if (is != null) {
+                return new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+            } else {
+                return null;
+            }
+        }
     }
 }
