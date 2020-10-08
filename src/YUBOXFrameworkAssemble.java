@@ -131,11 +131,20 @@ implements Tool
         ArrayList<String> manifest = new ArrayList<>();
         File dataDir = new File(editor.getSketch().getFolder(), "data");
         if (!dataDir.exists()) {
-            System.out.println("INFO: creando directorio data ...");
+            System.out.println("INFO: creating directory data/ ...");
             if (!dataDir.mkdir()) {
                 System.err.println();
-                editor.statusError("ERR: no se puede crear directorio data !");
+                editor.statusError("ERR: cannot create directory data/ !");
                 return;
+            }
+        } else {
+            try {
+                System.out.println("INFO: removing stale content in directory data/ ...");
+                FileUtils.cleanDirectory(dataDir);
+            } catch (IOException e) {
+                System.err.println();
+                editor.statusError("ERR: cannot clear directory data/ - stale content might get uploaded to device.");
+                // Se intenta continuar de todos modos...
             }
         }
 
