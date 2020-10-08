@@ -231,6 +231,10 @@ implements Tool
             w.flush();
             w.close();
 
+            // Construcción finalizada
+            System.out.println();
+            System.out.println("Finished assembling HTML resources. Now upload them using the ESP32 Sketch Data Upload tool.");
+
         } catch (IOException e) {
             // Uno o más archivos no se pudieron leer o escribir
             System.err.println();
